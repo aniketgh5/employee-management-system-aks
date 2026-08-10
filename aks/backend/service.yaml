@@ -1,0 +1,20 @@
+# ClusterIP only - the backend is reachable from other Pods (and from the
+# Ingress controller) inside the cluster, but never gets a public IP or
+# NodePort directly. The only public entry point is the Ingress.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: employee-app
+  labels:
+    app: backend
+    app.kubernetes.io/part-of: employee-management-system
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP

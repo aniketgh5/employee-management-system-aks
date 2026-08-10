@@ -1,0 +1,119 @@
+# Employee Management System - Azure DevOps CI/CD pipeline (placeholder)
+#
+# This pipeline is CI/CD-READY but does NOT require any Azure credentials,
+# service connections, or secrets to exist yet. The Test and Build stages
+# will run as-is once imported into Azure DevOps. The Deploy stage is a
+# clearly-marked placeholder - fill in the commented-out tasks once you
+# have created a service connection / SSH endpoint to your Azure VM.
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  pythonVersion: "3.12"
+  imageName: "employee-api"
+  # Immutable, traceable tag: build id + short commit SHA (see README ->
+  # "Docker Image Tagging" for why "latest" alone is not enough).
+  imageTag: "$(Build.BuildId)-$(Build.SourceVersion)"
+
+stages:
+  # ---------------------------------------------------------------------
+  - stage: Test
+    displayName: "Lint & Test"
+    jobs:
+      - job: BackendTests
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "$(pythonVersion)"
+            displayName: "Install Python $(pythonVersion)"
+
+          - script: |
+              cd backend
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+            displayName: "Install backend dependencies"
+
+          - script: |
+              cd backend
+              pytest --junitxml=test-results.xml
+            displayName: "Run pytest"
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFiles: "backend/test-results.xml"
+              testRunTitle: "Backend unit tests"
+
+  # ---------------------------------------------------------------------
+  - stage: Build
+    displayName: "Build & Tag Docker Image"
+    dependsOn: Test
+    condition: succeeded()
+    jobs:
+      - job: DockerBuild
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - script: |
+              docker build \
+                -t $(imageName):$(imageTag) \
+                -t $(imageName):latest \
+                ./backend
+            displayName: "docker build (backend image)"
+
+          # Uncomment once an Azure Container Registry service connection exists:
+          # - task: Docker@2
+          #   displayName: "Push image to Azure Container Registry"
+          #   inputs:
+          #     containerRegistry: "<your-acr-service-connection>"
+          #     repository: "$(imageName)"
+          #     command: "push"
+          #     tags: |
+          #       $(imageTag)
+          #       latest
+
+  # ---------------------------------------------------------------------
+  - stage: Deploy
+    displayName: "Deploy to Azure VM"
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - deployment: DeployToVM
+        displayName: "Deploy over SSH"
+        environment: "azure-vm-production"
+        pool:
+          vmImage: "ubuntu-latest"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    echo "Placeholder deployment step - no credentials configured yet."
+                    echo "Once an SSH service connection is set up, this stage will:"
+                    echo "  1. SSH into the Azure VM"
+                    echo "  2. git pull the latest main branch"
+                    echo "  3. docker compose pull && docker compose up -d --build"
+                    echo "  4. docker compose ps  (verify all 3 containers are healthy)"
+                  displayName: "Deployment placeholder"
+
+                # Uncomment once an SSH service connection exists:
+                # - task: SSH@0
+                #   inputs:
+                #     sshEndpoint: "<your-ssh-service-connection>"
+                #     runOptions: "commands"
+                #     commands: |
+                #       cd ~/employee-management-system
+                #       git pull origin main
+                #       docker compose pull
+                #       docker compose up -d --build
+                #       docker compose ps

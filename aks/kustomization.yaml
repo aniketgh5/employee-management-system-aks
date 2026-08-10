@@ -1,0 +1,46 @@
+# Employee Management System - AKS Kustomize entrypoint.
+#
+# Kustomize lets us apply the whole manifest set with one command, and
+# override just the pieces that change between environments (here: the
+# two image references) WITHOUT editing or templating the YAML files
+# themselves.
+#
+# Apply everything:
+#   kubectl apply -k aks/
+#
+# Point at your real ACR before applying, either by editing the "images:"
+# section below, or from the command line (no file edit needed):
+#   cd aks
+#   kustomize edit set image \
+#     employee-backend-image=<ACR_LOGIN_SERVER>/employee-backend:<TAG> \
+#     employee-frontend-image=<ACR_LOGIN_SERVER>/employee-frontend:<TAG>
+#   kubectl apply -k .
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - database/pvc.yaml
+  - database/init-configmap.yaml
+  - database/deployment.yaml
+  - database/service.yaml
+  - backend/deployment.yaml
+  - backend/service.yaml
+  - backend/hpa.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+  - ingress/ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: employee-management-system
+
+images:
+  - name: employee-backend-image
+    newName: <ACR_LOGIN_SERVER>/employee-backend
+    newTag: "<TAG>"
+  - name: employee-frontend-image
+    newName: <ACR_LOGIN_SERVER>/employee-frontend
+    newTag: "<TAG>"

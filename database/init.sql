@@ -1,0 +1,40 @@
+-- Employee Management System - initial schema + seed data.
+-- Automatically executed by the official postgres image on first container
+-- start (mounted into /docker-entrypoint-initdb.d/). The FastAPI backend
+-- also has a safety-net create_all() call, so this is idempotent either way.
+
+CREATE TABLE IF NOT EXISTS employees (
+    id             SERIAL PRIMARY KEY,
+    employee_id    VARCHAR(20)  UNIQUE NOT NULL,
+    first_name     VARCHAR(50)  NOT NULL,
+    last_name      VARCHAR(50)  NOT NULL,
+    email          VARCHAR(120) UNIQUE NOT NULL,
+    department     VARCHAR(50)  NOT NULL,
+    designation    VARCHAR(80)  NOT NULL,
+    salary         NUMERIC(10, 2) NOT NULL CHECK (salary > 0),
+    status         VARCHAR(20)  NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    joining_date   DATE NOT NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_employees_department ON employees (department);
+CREATE INDEX IF NOT EXISTS idx_employees_status     ON employees (status);
+CREATE INDEX IF NOT EXISTS idx_employees_email      ON employees (email);
+
+INSERT INTO employees
+    (employee_id, first_name, last_name, email, department, designation, salary, status, joining_date)
+VALUES
+    ('EMP1001', 'Aniket', 'Sharma', 'aniket.sharma@company.com',  'Engineering',     'DevOps Engineer',            85000.00, 'active',   '2021-03-15'),
+    ('EMP1002', 'Priya',  'Nair',   'priya.nair@company.com',     'Engineering',     'Backend Developer',          78000.00, 'active',   '2020-07-01'),
+    ('EMP1003', 'Rohan',  'Verma',  'rohan.verma@company.com',    'Engineering',     'Frontend Developer',         72000.00, 'active',   '2022-01-10'),
+    ('EMP1004', 'Sneha',  'Iyer',   'sneha.iyer@company.com',     'Human Resources', 'HR Manager',                 65000.00, 'active',   '2019-11-20'),
+    ('EMP1005', 'Karan',  'Mehta',  'karan.mehta@company.com',    'Finance',         'Financial Analyst',          70000.00, 'active',   '2021-06-05'),
+    ('EMP1006', 'Divya',  'Reddy',  'divya.reddy@company.com',    'Sales',           'Sales Executive',            55000.00, 'active',   '2022-09-01'),
+    ('EMP1007', 'Arjun',  'Singh',  'arjun.singh@company.com',    'Engineering',     'Site Reliability Engineer',  92000.00, 'active',   '2018-04-18'),
+    ('EMP1008', 'Meera',  'Joshi',  'meera.joshi@company.com',    'Marketing',       'Marketing Specialist',       60000.00, 'inactive', '2020-02-14'),
+    ('EMP1009', 'Vikram', 'Rao',    'vikram.rao@company.com',     'Finance',         'Accountant',                 58000.00, 'active',   '2023-01-09'),
+    ('EMP1010', 'Anjali', 'Gupta',  'anjali.gupta@company.com',   'Engineering',     'QA Engineer',                68000.00, 'active',   '2021-12-01'),
+    ('EMP1011', 'Rahul',  'Kapoor', 'rahul.kapoor@company.com',   'Operations',      'Operations Manager',         75000.00, 'inactive', '2019-08-23'),
+    ('EMP1012', 'Neha',   'Chopra', 'neha.chopra@company.com',    'Human Resources', 'Recruiter',                  52000.00, 'active',   '2022-05-30')
+ON CONFLICT (employee_id) DO NOTHING;

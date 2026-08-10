@@ -1,0 +1,20 @@
+# ClusterIP only, per requirements - the frontend does NOT get its own
+# public LoadBalancer IP. The Ingress is the single public entry point
+# and forwards "/" traffic to this Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: employee-app
+  labels:
+    app: frontend
+    app.kubernetes.io/part-of: employee-management-system
+spec:
+  type: ClusterIP
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

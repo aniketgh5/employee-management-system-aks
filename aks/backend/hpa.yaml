@@ -1,0 +1,33 @@
+# CPU-based autoscaling for the backend. Requires the AKS metrics-server
+# (enabled by default) and the backend containers to have CPU "requests"
+# set (they do - see deployment.yaml), since averageUtilization is
+# calculated as a percentage of the requested CPU.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  namespace: employee-app
+  labels:
+    app: backend
+    app.kubernetes.io/part-of: employee-management-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      # Wait 2 minutes of sustained low CPU before scaling down, to avoid
+      # flapping replicas up and down on brief traffic dips.
+      stabilizationWindowSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 0

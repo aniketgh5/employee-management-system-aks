@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employee Management System</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">EMS</span>
+      <span class="brand-name">Employee Management System</span>
+    </div>
+    <div class="topbar-actions">
+      <a href="/docs" target="_blank" rel="noopener" class="btn btn-ghost">API Docs</a>
+      <button id="add-employee-btn" class="btn btn-primary">+ Add Employee</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="stats-grid" id="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Total Employees</span>
+        <span class="stat-value" id="stat-total">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Active Employees</span>
+        <span class="stat-value" id="stat-active">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Departments</span>
+        <span class="stat-value" id="stat-departments">--</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">System Status</span>
+        <span class="stat-value" id="stat-health">--</span>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <input type="text" id="search-input" placeholder="Search by name, email or employee ID...">
+      <select id="department-filter">
+        <option value="">All Departments</option>
+      </select>
+      <select id="status-filter">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <button id="refresh-btn" class="btn btn-ghost">Refresh</button>
+    </section>
+
+    <section class="table-wrapper">
+      <table id="employee-table">
+        <thead>
+          <tr>
+            <th>Employee ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Department</th>
+            <th>Designation</th>
+            <th>Salary</th>
+            <th>Status</th>
+            <th>Joined</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="employee-table-body">
+          <tr><td colspan="9" class="empty-row">Loading employees...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <div id="employee-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">Add Employee</h2>
+        <button id="modal-close" class="btn-icon" type="button" aria-label="Close">&times;</button>
+      </div>
+      <form id="employee-form">
+        <input type="hidden" id="employee-db-id">
+        <div class="form-grid">
+          <label>Employee ID<input type="text" id="form-employee-id" required></label>
+          <label>Status
+            <select id="form-status">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <label>First Name<input type="text" id="form-first-name" required></label>
+          <label>Last Name<input type="text" id="form-last-name" required></label>
+          <label class="span-2">Email<input type="email" id="form-email" required></label>
+          <label>Department<input type="text" id="form-department" required></label>
+          <label>Designation<input type="text" id="form-designation" required></label>
+          <label>Salary<input type="number" step="0.01" min="0" id="form-salary" required></label>
+          <label>Joining Date<input type="date" id="form-joining-date" required></label>
+        </div>
+        <p id="form-error" class="form-error hidden"></p>
+        <div class="modal-actions">
+          <button type="button" id="form-cancel" class="btn btn-ghost">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Employee</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

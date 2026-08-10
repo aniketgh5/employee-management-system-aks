@@ -1,0 +1,101 @@
+# PostgreSQL for the AKS LEARNING/DEMO environment.
+#
+# IMPORTANT: running PostgreSQL as a plain Deployment + PVC inside AKS is
+# fine for hands-on learning, but it is NOT the recommended production
+# pattern - a single Pod is not highly available, storage failover is
+# manual, backups/patching are your responsibility, and a Deployment
+# (vs. StatefulSet) can briefly run two Pods pointing at the same RWO
+# volume during a rollout. Production Azure architectures should use
+# Azure Database for PostgreSQL - Flexible Server instead (see README
+# "Enterprise Evolution - Level 3"). This is called out again in
+# docs/aks-architecture.md.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  namespace: employee-app
+  labels:
+    app: postgresql
+    app.kubernetes.io/part-of: employee-management-system
+spec:
+  replicas: 1
+  strategy:
+    # Recreate (not RollingUpdate): a ReadWriteOnce disk can only be
+    # mounted by one Pod at a time, so the old Pod must fully terminate
+    # (and release the volume) before a new one can start.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+        app.kubernetes.io/part-of: employee-management-system
+    spec:
+      securityContext:
+        # Matches the "postgres" group inside the official image so the
+        # mounted volume is writable by the container's postgres user.
+        fsGroup: 999
+      containers:
+        - name: postgresql
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: employee-config
+                  key: DATABASE_NAME
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: employee-secret
+                  key: DATABASE_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: employee-secret
+                  key: DATABASE_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)", "-d", "$(POSTGRES_DB)"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)", "-d", "$(POSTGRES_DB)"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgresql-pvc
+        - name: init-script
+          configMap:
+            name: postgres-init-script

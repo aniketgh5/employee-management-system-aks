@@ -1,0 +1,21 @@
+# Requests persistent storage for PostgreSQL data from the cluster's
+# StorageClass. On AKS this provisions an Azure Managed Disk behind the
+# scenes. Lifecycle: Pod -> PVC (this file) -> StorageClass -> Azure Disk.
+# See docs/aks-architecture.md "Storage" section for the full explanation.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql-pvc
+  namespace: employee-app
+  labels:
+    app.kubernetes.io/part-of: employee-management-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # "managed-csi" is the modern default StorageClass on AKS (Azure Disk,
+  # CSI driver). Run `kubectl get storageclass` on your cluster to confirm
+  # the exact name available - older clusters may expose "default" instead.
+  storageClassName: managed-csi
+  resources:
+    requests:
+      storage: 5Gi

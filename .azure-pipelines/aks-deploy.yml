@@ -1,0 +1,184 @@
+# Employee Management System - AKS CI/CD pipeline (placeholder).
+#
+# Mirrors vm-deploy.yml's Test stage (same backend/tests, same pytest run)
+# then diverges: builds BOTH images, pushes to ACR, deploys to AKS via
+# Kustomize, and runs a smoke test against the live Ingress endpoint.
+#
+# Requires NO Azure credentials to import - the Test and Docker Build
+# stages run as-is. Push/Deploy/SmokeTest stages are placeholders with
+# the real tasks commented out, ready to enable once you've created:
+#   - an ACR service connection (for PushToACR)
+#   - an AKS service connection / kubeconfig (for DeployToAKS)
+#   - pipeline variables: acrLoginServer, aksResourceGroup, aksClusterName,
+#     ingressHost (see README "CI/CD" section)
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  pythonVersion: "3.12"
+  backendImage: "employee-backend"
+  frontendImage: "employee-frontend"
+  # Immutable tag: build id + short commit SHA - never rely on "latest"
+  # alone for a real deployment (see README "Docker Image Tagging").
+  imageTag: "$(Build.BuildId)-$(Build.SourceVersion)"
+
+stages:
+  # ---------------------------------------------------------------------
+  - stage: Test
+    displayName: "Build & Test"
+    jobs:
+      - job: BackendTests
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "$(pythonVersion)"
+            displayName: "Install Python $(pythonVersion)"
+
+          - script: |
+              cd backend
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+            displayName: "Install backend dependencies"
+
+          - script: |
+              cd backend
+              pytest --junitxml=test-results.xml
+            displayName: "Run pytest"
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFiles: "backend/test-results.xml"
+              testRunTitle: "Backend unit tests"
+
+  # ---------------------------------------------------------------------
+  - stage: DockerBuild
+    displayName: "Docker Build (frontend + backend)"
+    dependsOn: Test
+    condition: succeeded()
+    jobs:
+      - job: BuildImages
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - script: |
+              docker build \
+                -t $(backendImage):$(imageTag) \
+                -t $(backendImage):latest \
+                ./backend
+            displayName: "docker build backend (backend/Dockerfile - unchanged from VM deployment)"
+
+          - script: |
+              docker build \
+                -t $(frontendImage):$(imageTag) \
+                -t $(frontendImage):latest \
+                ./frontend
+            displayName: "docker build frontend (frontend/Dockerfile - AKS-only static image)"
+
+  # ---------------------------------------------------------------------
+  - stage: PushToACR
+    displayName: "Push images to ACR"
+    dependsOn: DockerBuild
+    condition: succeeded()
+    jobs:
+      - job: PushImages
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - script: |
+              echo "Placeholder - requires an ACR service connection."
+              echo "Once configured, this stage pushes:"
+              echo "  \$(acrLoginServer)/$(backendImage):$(imageTag)"
+              echo "  \$(acrLoginServer)/$(frontendImage):$(imageTag)"
+            displayName: "Push placeholder"
+
+          # Uncomment once an ACR service connection exists:
+          # - task: Docker@2
+          #   displayName: "Push backend image"
+          #   inputs:
+          #     containerRegistry: "<acr-service-connection>"
+          #     repository: "$(backendImage)"
+          #     command: "buildAndPush"
+          #     Dockerfile: "backend/Dockerfile"
+          #     buildContext: "backend"
+          #     tags: |
+          #       $(imageTag)
+          #       latest
+          #
+          # - task: Docker@2
+          #   displayName: "Push frontend image"
+          #   inputs:
+          #     containerRegistry: "<acr-service-connection>"
+          #     repository: "$(frontendImage)"
+          #     command: "buildAndPush"
+          #     Dockerfile: "frontend/Dockerfile"
+          #     buildContext: "frontend"
+          #     tags: |
+          #       $(imageTag)
+          #       latest
+
+  # ---------------------------------------------------------------------
+  - stage: DeployToAKS
+    displayName: "Deploy to AKS"
+    dependsOn: PushToACR
+    condition: succeeded()
+    jobs:
+      - deployment: DeployAKS
+        displayName: "kubectl apply -k aks/"
+        environment: "aks-employee-app"
+        pool:
+          vmImage: "ubuntu-latest"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    echo "Placeholder - requires an AKS service connection / kubeconfig."
+                    echo "Once configured, this stage will:"
+                    echo "  1. az aks get-credentials -g \$(aksResourceGroup) -n \$(aksClusterName)"
+                    echo "  2. cd aks"
+                    echo "  3. kustomize edit set image \\"
+                    echo "       employee-backend-image=\$(acrLoginServer)/$(backendImage):$(imageTag) \\"
+                    echo "       employee-frontend-image=\$(acrLoginServer)/$(frontendImage):$(imageTag)"
+                    echo "  4. kubectl apply -k ."
+                    echo "  5. kubectl rollout status deployment/backend  -n employee-app"
+                    echo "  6. kubectl rollout status deployment/frontend -n employee-app"
+                  displayName: "Deploy placeholder"
+
+                # Uncomment once an AKS service connection exists:
+                # - task: KubectlInstaller@0
+                # - task: Kubernetes@1
+                #   inputs:
+                #     connectionType: "Kubernetes Service Connection"
+                #     kubernetesServiceEndpoint: "<aks-service-connection>"
+                #     namespace: "employee-app"
+                #     command: "apply"
+                #     arguments: "-k aks/"
+
+  # ---------------------------------------------------------------------
+  - stage: SmokeTest
+    displayName: "Smoke Test"
+    dependsOn: DeployToAKS
+    condition: succeeded()
+    jobs:
+      - job: SmokeTest
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - script: |
+              set -e
+              echo "Replace \$(ingressHost) with the real Ingress host/IP before enabling this stage."
+              echo "Failing the pipeline if either check does not return HTTP 200:"
+              curl -fsS "http://\$(ingressHost)/health"
+              curl -fsS "http://\$(ingressHost)/api/employees"
+            displayName: "curl /health and /api/employees - fails the pipeline on error"

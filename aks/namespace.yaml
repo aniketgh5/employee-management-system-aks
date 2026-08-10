@@ -1,0 +1,11 @@
+# All Employee Management System AKS resources live in this Namespace.
+# Namespaces give us: name isolation, a scope for RBAC, resource quotas,
+# and a boundary for "kubectl get all -n employee-app" to show exactly
+# this application's resources and nothing else on the cluster.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: employee-app
+  labels:
+    app.kubernetes.io/part-of: employee-management-system
+    environment: learning

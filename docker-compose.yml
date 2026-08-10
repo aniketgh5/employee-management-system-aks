@@ -1,0 +1,89 @@
+# Employee Management System - local & VM deployment stack
+#
+#   Browser --:80--> nginx --/api/*--> backend:8000 --> postgres:5432
+#
+# Only Nginx publishes a port to the host. PostgreSQL and the backend are
+# reachable only inside the internal "emp-network" Docker network.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: emp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - emp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # NOTE: intentionally no "ports:" mapping - Postgres is never exposed
+    # to the host or the internet, only to other containers on emp-network.
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: employee-api:local
+    container_name: emp-backend
+    restart: unless-stopped
+    environment:
+      APP_NAME: ${APP_NAME:-employee-management-api}
+      APP_ENV: ${APP_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - emp-network
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    # NOTE: no host port published - only Nginx talks to the backend,
+    # over the internal Docker network, by service name ("backend").
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    image: employee-nginx:local
+    container_name: emp-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - emp-network
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  emp-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

@@ -1,0 +1,83 @@
+# Static frontend - same index.html/css/js as the VM deployment, packaged
+# with a lightweight AKS-only image (frontend/Dockerfile) that just serves
+# files; Ingress handles API routing instead of an in-container proxy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: employee-app
+  labels:
+    app: frontend
+    app.kubernetes.io/part-of: employee-management-system
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        app.kubernetes.io/part-of: employee-management-system
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: frontend
+          # Placeholder name resolved by kustomization.yaml's "images:"
+          # transformer to <ACR_LOGIN_SERVER>/employee-frontend:<TAG>.
+          image: employee-frontend-image:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 150m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            # nginx needs to write its pid file, temp buffers, and cache
+            # even when running unprivileged with a read-only rootfs.
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}

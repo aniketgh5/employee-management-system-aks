@@ -1,0 +1,20 @@
+# ClusterIP only - PostgreSQL is never exposed outside the cluster. Only
+# Pods inside employee-app (in practice: the backend) can reach it, via
+# the DNS name "postgresql" (see configmap.yaml DATABASE_HOST).
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: employee-app
+  labels:
+    app: postgresql
+    app.kubernetes.io/part-of: employee-management-system
+spec:
+  type: ClusterIP
+  selector:
+    app: postgresql
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP

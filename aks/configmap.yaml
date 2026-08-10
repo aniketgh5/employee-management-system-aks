@@ -1,0 +1,25 @@
+# Non-sensitive configuration for the backend (and values reused by the
+# PostgreSQL Deployment). Keys deliberately match the environment variable
+# names already read by backend/app/config.py, so this ConfigMap can be
+# wired in with `envFrom: configMapRef` with zero application code changes.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: employee-config
+  namespace: employee-app
+  labels:
+    app.kubernetes.io/part-of: employee-management-system
+data:
+  APP_NAME: "employee-management-api"
+  APP_ENV: "production"
+  LOG_LEVEL: "INFO"
+  # Update this once you have a real Ingress host (see aks/ingress/ingress.yaml)
+  CORS_ORIGINS: "http://employee.example.com"
+
+  # Kubernetes DNS: "postgresql" resolves within the same namespace because
+  # of the cluster's default DNS search domains. The fully-qualified form
+  # is postgresql.employee-app.svc.cluster.local - see docs/aks-architecture.md
+  # for why Service names (not Pod IPs) are used for discovery.
+  DATABASE_HOST: "postgresql"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "employee_management"

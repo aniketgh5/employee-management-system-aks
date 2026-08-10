@@ -1,0 +1,14 @@
+# Used as the .dockerignore for the ROOT build context (nginx image build).
+.git
+.gitignore
+.env
+.env.example
+README.md
+docs/
+.azure-pipelines/
+backend/tests
+backend/__pycache__
+backend/.pytest_cache
+**/__pycache__
+**/*.md
+postgres_data/
