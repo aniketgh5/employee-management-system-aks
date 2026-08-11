@@ -1,6 +1,8 @@
 # ---- Employee Management System - Nginx image ----
-# Build context is the REPO ROOT (see docker-compose.yml: context: .)
-# so this Dockerfile can pick up both nginx/nginx.conf and frontend/.
+
+# Build context is the REPO ROOT
+# This allows the Dockerfile to access frontend/ and nginx/
+
 FROM nginx:1.27-alpine
 
 RUN apk add --no-cache curl \

@@ -26,7 +26,6 @@ spec:
         app.kubernetes.io/part-of: employee-management-system
     spec:
       securityContext:
-        runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
       containers:

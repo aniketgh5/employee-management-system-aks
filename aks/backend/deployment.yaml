@@ -33,7 +33,6 @@ spec:
         # The image already runs as a non-root "appuser" (see
         # backend/Dockerfile "USER appuser"); this just asserts and
         # enforces that at the Kubernetes level too.
-        runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
       containers:

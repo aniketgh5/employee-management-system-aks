@@ -12,8 +12,8 @@
 # section below, or from the command line (no file edit needed):
 #   cd aks
 #   kustomize edit set image \
-#     employee-backend-image=<ACR_LOGIN_SERVER>/employee-backend:<TAG> \
-#     employee-frontend-image=<ACR_LOGIN_SERVER>/employee-frontend:<TAG>
+#     employee-backend-image=acremployeeapp20260810.azurecr.io/employee-api:<TAG> \
+#     employee-frontend-image=acremployeeapp20260810.azurecr.io/employee-frontend:<TAG>
 #   kubectl apply -k .
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -39,8 +39,8 @@ commonLabels:
 
 images:
   - name: employee-backend-image
-    newName: <ACR_LOGIN_SERVER>/employee-backend
-    newTag: "<TAG>"
+    newName: acremployeeapp20260810.azurecr.io/employee-api
+    newTag: "v1"
   - name: employee-frontend-image
-    newName: <ACR_LOGIN_SERVER>/employee-frontend
-    newTag: "<TAG>"
+    newName: acremployeeapp20260810.azurecr.io/employee-frontend
+    newTag: "v1"

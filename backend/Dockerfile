@@ -1,4 +1,5 @@
 # ---- Employee Management API - backend image ----
+
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -8,12 +9,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# curl is only needed for the container HEALTHCHECK below
+# curl is needed for the container HEALTHCHECK
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies first so this layer is cached unless requirements change
+# Install dependencies first so this layer is cached
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
