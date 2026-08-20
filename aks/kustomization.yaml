@@ -39,8 +39,8 @@ commonLabels:
 
 images:
   - name: employee-backend-image
-    newName: acremployeeapp20260810.azurecr.io/employee-api
-    newTag: "v1"
+    newName: acrempaks0821005255.azurecr.io/employee-api
+    newTag: "v3"
   - name: employee-frontend-image
-    newName: acremployeeapp20260810.azurecr.io/employee-frontend
+    newName: acrempaks0821005255.azurecr.io/employee-frontend
     newTag: "v1"
