@@ -32,6 +32,7 @@ resources:
   - frontend/deployment.yaml
   - frontend/service.yaml
   - ingress/ingress.yaml
+  - cluster-issuer.yaml
 
 commonLabels:
   app.kubernetes.io/managed-by: kustomize

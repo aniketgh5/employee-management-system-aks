@@ -1,25 +1,3 @@
-# ============================================================================
-# LEARNING / HANDS-ON VERSION
-# ============================================================================
-# Uses the community ingress-nginx controller (ingressClassName: nginx).
-# This is the simplest, most widely-documented option for a learning AKS
-# cluster. See docs/aks-architecture.md "Ingress Controller" for the
-# ENTERPRISE/PRODUCTION version (AKS "App Routing" add-on or Application
-# Gateway for Containers with TLS) - deliberately NOT mixed into this file.
-#
-# Install the controller first (one-time, cluster-wide - not part of this
-# app's manifests):
-#   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-#   helm install ingress-nginx ingress-nginx/ingress-nginx \
-#     --namespace ingress-nginx --create-namespace
-#
-# Routing:
-#   /api  -> backend:8000   (FastAPI already serves routes under /api/*)
-#   /health -> backend:8000 (application health check)
-#   /     -> frontend:80    (everything else: static site)
-#
-# No rewrite-target annotation is needed because the backend's own routes
-# already start with /api and /health - paths are forwarded unchanged.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -28,16 +6,44 @@ metadata:
   labels:
     app.kubernetes.io/part-of: employee-management-system
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
 spec:
   ingressClassName: webapprouting.kubernetes.azure.com
+  tls:
+    - hosts:
+        - employee.aniketghosh.online
+        - aniketghosh.online
+      secretName: employee-tls
   rules:
-    # Replace with your real domain, or remove the "host" line entirely to
-    # match ANY hostname/IP - see AKS_DEPLOYMENT_GUIDE.md "No domain yet?"
-    # for testing without DNS (curl -H "Host: ..." or nip.io).
-    - http:
+    - host: employee.aniketghosh.online
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+    - host: aniketghosh.online
+      http:
         paths:
           - path: /api
             pathType: Prefix
