@@ -1,0 +1,13 @@
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+resource_group_name = "employee-app-rg"
+cluster_name        = "employee-app-aks"
+dns_prefix          = "employee-app"
+location            = "centralindia"
+node_count          = 1
+node_vm_size        = "Standard_B2s"
+
+
+# Replace these with globally unique names.
+acr_name       = "youruniqueemployeeacr"
+key_vault_name = "yourunique-employee-kv"
+environment    = "dev"

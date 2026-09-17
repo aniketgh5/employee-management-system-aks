@@ -4,19 +4,34 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.0"
+      version = ">= 4.59.0, < 5.0.0"
     }
   }
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy = false
+    }
+  }
   subscription_id = var.subscription_id
+}
+
+data "azurerm_client_config" "current" {}
+
+locals {
+  tags = {
+    Project     = "employee-management-system"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
 }
 
 resource "azurerm_resource_group" "main" {
   name     = var.resource_group_name
   location = var.location
+  tags     = local.tags
 }
 
 resource "azurerm_kubernetes_cluster" "main" {
@@ -36,14 +51,15 @@ resource "azurerm_kubernetes_cluster" "main" {
     type = "SystemAssigned"
   }
 
+  key_vault_secrets_provider {
+    secret_rotation_enabled = true
+  }
+
   network_profile {
     network_plugin    = "kubenet"
     load_balancer_sku = "standard"
   }
 
-  tags = {
-    Environment = "practice"
-    ManagedBy   = "terraform"
-  }
+  tags = local.tags
 }
 

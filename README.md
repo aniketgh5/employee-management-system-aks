@@ -615,3 +615,7 @@ LEVEL 5   Enterprise Landing Zone: Hub-Spoke + Centralized Security + Governance
 - **How would CI/CD work end-to-end?** Push → test → build both images with an immutable tag → push to ACR → `kubectl apply -k` (or Helm) against AKS → automated smoke test that fails the pipeline on a bad deploy.
 - **How would you troubleshoot CrashLoopBackOff?** `kubectl logs <pod> --previous` to see why the last attempt crashed, then check ConfigMap/Secret values and whether its dependencies (e.g. Postgres) were actually reachable.
 - **How would you troubleshoot ImagePullBackOff?** `kubectl describe pod` to see the exact pull error, confirm the image/tag actually exists in ACR, and confirm `attach-acr` was run so the cluster identity has `AcrPull`.
+
+## Azure infrastructure with Terraform
+
+[`terraform-azure-infrastructure/`](terraform-azure-infrastructure/README.md) provisions AKS, ACR, and Azure Key Vault, including AKS image-pull permissions and Key Vault CSI access. See its README for configuration, existing-resource imports, and deployment commands.
