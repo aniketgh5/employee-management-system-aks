@@ -32,7 +32,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
 spec:
-  ingressClassName: nginx
+  ingressClassName: webapprouting.kubernetes.azure.com
   rules:
     # Replace with your real domain, or remove the "host" line entirely to
     # match ANY hostname/IP - see AKS_DEPLOYMENT_GUIDE.md "No domain yet?"
