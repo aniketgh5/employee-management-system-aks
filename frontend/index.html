@@ -13,6 +13,8 @@
       <span class="brand-name">Employee Management System</span>
     </div>
     <div class="topbar-actions">
+      <!-- Dark Mode Toggle Button Added -->
+      <button id="theme-toggle" class="btn btn-ghost" aria-label="Toggle Dark Mode">🌙 Dark Mode</button>
       <a href="/docs" target="_blank" rel="noopener" class="btn btn-ghost">API Docs</a>
       <button id="add-employee-btn" class="btn btn-primary">+ Add Employee</button>
     </div>
@@ -107,5 +109,29 @@
   </div>
 
   <script src="js/app.js"></script>
+  
+  <!-- Dark Mode Logic -->
+  <script>
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    
+    // Check local storage for theme preference on load
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark-mode');
+      themeToggleBtn.textContent = '☀️ Light Mode';
+    }
+
+    // Toggle theme on click
+    themeToggleBtn.addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      
+      if (document.body.classList.contains('dark-mode')) {
+        localStorage.setItem('theme', 'dark');
+        themeToggleBtn.textContent = '☀️ Light Mode';
+      } else {
+        localStorage.setItem('theme', 'light');
+        themeToggleBtn.textContent = '🌙 Dark Mode';
+      }
+    });
+  </script>
 </body>
 </html>

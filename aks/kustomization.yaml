@@ -44,4 +44,4 @@ images:
     newTag: "latest"
   - name: employee-frontend-image
     newName: aniketghoshacr.azurecr.io/frontend
-    newTag: "latest"
+    newTag: "v2"
