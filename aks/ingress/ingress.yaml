@@ -7,7 +7,8 @@ metadata:
     app.kubernetes.io/part-of: employee-management-system
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
 spec:
@@ -18,6 +19,30 @@ spec:
         - aniketghosh.online
       secretName: employee-tls
   rules:
+    # Allow HTTP access through the public IP before DNS is configured.
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
     - host: employee.aniketghosh.online
       http:
         paths:

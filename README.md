@@ -469,12 +469,12 @@ issues: see the original table format above, mirrored in
 Two pipelines, mirroring the two deployment models:
 
 - **`.azure-pipelines/vm-deploy.yml`** - Test → Docker build (backend) → tag → (push, placeholder) → deploy over SSH (placeholder).
-- **`.azure-pipelines/aks-deploy.yml`** - Test → Docker build (both images) → Push to ACR (placeholder) → `kubectl apply -k aks/` (placeholder) → **Smoke test** (`curl /health` and `curl /api/employees`, fails the pipeline on error).
+- **`.azure-pipelines/aks-deploy.yml`** - Backend tests → build and push both images to ACR → deploy the release manifests to AKS → verify rollouts and public HTTP/database health. Pull requests test and build without deploying.
 
-Both pipelines run with **zero Azure credentials configured** up through
-the Test/Build stages; the Push/Deploy stages have the real tasks
-commented out and ready to enable once you create the relevant service
-connections (ACR, and either SSH-to-VM or AKS/kubeconfig).
+For the AKS pipeline, follow [Azure DevOps setup](docs/azure-devops-aks.md) to
+create the Azure service connection and deployment environment. It targets the
+existing cluster and preserves the live database Secret and PVC. The VM
+pipeline remains a placeholder.
 
 ### Docker image tagging strategy
 

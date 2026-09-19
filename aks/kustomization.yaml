@@ -40,8 +40,8 @@ commonLabels:
 
 images:
   - name: employee-backend-image
-    newName: aniketghoshacr.azurecr.io/backend
-    newTag: "latest"
+    newName: aniketghoshacr.azurecr.io/employee-api
+    newTag: "v1"
   - name: employee-frontend-image
-    newName: aniketghoshacr.azurecr.io/frontend
+    newName: aniketghoshacr.azurecr.io/employee-frontend
     newTag: "v2"
