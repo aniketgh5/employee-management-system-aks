@@ -1,124 +1,432 @@
-# Setup: docs/azure-devops-aks.md
+
 trigger:
   batch: true
   branches:
-    include: [main]
+    include:
+      - main
+
 pr:
   branches:
-    include: [main]
+    include:
+      - main
 
 variables:
-  azureServiceConnection: 'azure-employee-aks'
+  azureServiceConnection: 'new'
+
+  # Azure Container Registry
   acrName: 'aniketghoshacr'
   acrLoginServer: 'aniketghoshacr.azurecr.io'
+
+  # AKS
   aksResourceGroup: 'aniketghosh-aks-rg'
   aksClusterName: 'aniketghosh-aks'
+
+  # Docker Images
   backendImage: 'employee-api'
   frontendImage: 'employee-frontend'
+
+  # Unique image tag
   imageTag: '$(Build.BuildId)-$(Build.SourceVersion)'
-  pythonVersion: '3.12'
+
+  # kubectl
   kubectlVersion: '1.35.0'
 
 pool:
-  vmImage: ubuntu-24.04
+  name: new_agent
+
+
+# =========================================================
+# STAGE 1 - TEST
+# =========================================================
 
 stages:
-  - stage: Test
-    jobs:
-      - job: BackendTests
-        steps:
-          - checkout: self
-          - task: UsePythonVersion@0
-            inputs:
-              versionSpec: '$(pythonVersion)'
-          - bash: |
-              set -euo pipefail
-              python -m pip install -r backend/requirements.txt
-              cd backend
-              python -m pytest --junitxml=test-results.xml
-            displayName: Run backend tests
-          - task: PublishTestResults@2
-            condition: succeededOrFailed()
-            inputs:
-              testResultsFormat: JUnit
-              testResultsFiles: backend/test-results.xml
-              failTaskOnFailedTests: true
 
-  - stage: Build
-    dependsOn: Test
-    jobs:
-      - job: BuildAndPush
-        steps:
+- stage: Test
+  displayName: Test
+
+  jobs:
+
+  - job: BackendTests
+    displayName: Backend Tests
+
+    steps:
+
+    # -----------------------------------------------------
+    # Checkout source code
+    # -----------------------------------------------------
+
+    - checkout: self
+
+
+    # -----------------------------------------------------
+    # Verify build environment
+    # -----------------------------------------------------
+
+    - bash: |
+        set -euo pipefail
+
+        echo "========================================"
+        echo "Checking Build Environment"
+        echo "========================================"
+
+        echo ""
+        echo "Python:"
+        command -v python3
+        python3 --version
+
+        echo ""
+        echo "PostgreSQL:"
+        command -v pg_config
+        pg_config --version
+
+        echo ""
+        echo "Docker:"
+        docker --version
+
+        echo ""
+        echo "Build environment verification completed."
+
+      displayName: Verify build dependencies
+
+
+    # -----------------------------------------------------
+    # Create Python environment and run backend tests
+    # -----------------------------------------------------
+
+    # - bash: |
+    #     set -euo pipefail
+
+    #     echo "========================================"
+    #     echo "Creating Python Virtual Environment"
+    #     echo "========================================"
+
+    #     python3 -m venv .venv
+
+    #     source .venv/bin/activate
+
+    #     echo ""
+    #     echo "Python inside virtual environment:"
+    #     python --version
+    #     command -v python
+
+    #     echo ""
+    #     echo "Upgrading pip tooling..."
+
+    #     python -m pip install \
+    #       --upgrade \
+    #       pip \
+    #       setuptools \
+    #       wheel
+
+    #     echo ""
+    #     echo "Installing backend dependencies..."
+
+    #     python -m pip install \
+    #       -r backend/requirements.txt
+
+    #     echo ""
+    #     echo "Running backend tests..."
+
+    #     cd backend
+
+    #     python -m pytest \
+    #       --junitxml=test-results.xml
+
+    #   displayName: Run backend tests
+
+
+    # -----------------------------------------------------
+    # Publish pytest results
+    # -----------------------------------------------------
+
+    - task: PublishTestResults@2
+      displayName: Publish backend test results
+
+      condition: succeededOrFailed()
+
+      inputs:
+        testResultsFormat: JUnit
+        testResultsFiles: 'backend/test-results.xml'
+        failTaskOnFailedTests: true
+
+
+# =========================================================
+# STAGE 2 - BUILD AND PUSH
+# =========================================================
+
+- stage: Build
+  displayName: Build and Push
+
+  dependsOn: Test
+
+  jobs:
+
+  - job: BuildAndPush
+    displayName: Build Docker Images
+
+    steps:
+
+    # -----------------------------------------------------
+    # Checkout source code
+    # -----------------------------------------------------
+
+    - checkout: self
+
+
+    # -----------------------------------------------------
+    # Install kubectl
+    # -----------------------------------------------------
+
+    - task: KubectlInstaller@0
+      displayName: Install kubectl
+
+      inputs:
+        kubectlVersion: '$(kubectlVersion)'
+
+
+    # -----------------------------------------------------
+    # Build Docker images and render manifests
+    # -----------------------------------------------------
+
+    - bash: |
+        set -euo pipefail
+
+        echo "========================================"
+        echo "Docker Image References"
+        echo "========================================"
+
+        echo "Backend:"
+        echo "$BACKEND_REF"
+
+        echo ""
+
+        echo "Frontend:"
+        echo "$FRONTEND_REF"
+
+
+        echo ""
+        echo "========================================"
+        echo "Building Backend Docker Image"
+        echo "========================================"
+
+        docker build \
+          --pull \
+          -f backend/Dockerfile \
+          -t "$BACKEND_REF" \
+          backend
+
+
+        echo ""
+        echo "========================================"
+        echo "Building Frontend Docker Image"
+        echo "========================================"
+
+        docker build \
+          --pull \
+          -f frontend/Dockerfile \
+          -t "$FRONTEND_REF" \
+          frontend
+
+
+        echo ""
+        echo "========================================"
+        echo "Preparing Manifest Rendering Environment"
+        echo "========================================"
+
+        python3 --version
+
+        python3 -m venv .venv
+
+        source .venv/bin/activate
+
+        echo "Virtual environment:"
+        python --version
+
+        python -m pip install --upgrade pip
+        python -m pip install PyYAML==6.0.3
+
+
+        echo ""
+        echo "========================================"
+        echo "Rendering AKS Manifests"
+        echo "========================================"
+
+        python scripts/ci/render-aks.py \
+          aks \
+          "$OUTPUT_DIR" \
+          "$BACKEND_REF" \
+          "$FRONTEND_REF"
+
+
+        echo ""
+        echo "========================================"
+        echo "Running Kustomize"
+        echo "========================================"
+
+        kubectl kustomize "$OUTPUT_DIR" \
+          > "$OUTPUT_DIR/rendered.yaml"
+
+
+        echo ""
+        echo "Manifest rendering completed successfully."
+
+      displayName: Build images and render AKS manifests
+
+      env:
+        BACKEND_REF: '$(acrLoginServer)/$(backendImage):$(imageTag)'
+        FRONTEND_REF: '$(acrLoginServer)/$(frontendImage):$(imageTag)'
+        OUTPUT_DIR: '$(Build.ArtifactStagingDirectory)/aks'
+
+
+    # -----------------------------------------------------
+    # Push Docker images to ACR
+    # Only runs for main branch
+    # -----------------------------------------------------
+
+    - task: AzureCLI@2
+      displayName: Push release images to ACR
+
+      condition: >
+        and(
+          succeeded(),
+          eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+          ne(variables['Build.Reason'], 'PullRequest')
+        )
+
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        scriptType: bash
+        scriptLocation: inlineScript
+
+        inlineScript: |
+          set -euo pipefail
+
+          echo "========================================"
+          echo "Login to Azure Container Registry"
+          echo "========================================"
+
+          az acr login \
+            --name "$ACR_NAME"
+
+
+          echo ""
+          echo "========================================"
+          echo "Push Backend Image"
+          echo "========================================"
+
+          docker push "$BACKEND_REF"
+
+
+          echo ""
+          echo "========================================"
+          echo "Push Frontend Image"
+          echo "========================================"
+
+          docker push "$FRONTEND_REF"
+
+
+          echo ""
+          echo "Images pushed successfully."
+
+      env:
+        ACR_NAME: '$(acrName)'
+        BACKEND_REF: '$(acrLoginServer)/$(backendImage):$(imageTag)'
+        FRONTEND_REF: '$(acrLoginServer)/$(frontendImage):$(imageTag)'
+
+
+    # -----------------------------------------------------
+    # Publish rendered Kubernetes manifests
+    # -----------------------------------------------------
+
+    - task: PublishPipelineArtifact@1
+      displayName: Publish AKS manifests
+
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/aks'
+        artifact: 'aks-manifests'
+
+
+# =========================================================
+# STAGE 3 - DEPLOY
+# =========================================================
+
+- stage: Deploy
+  displayName: Deploy to AKS
+
+  dependsOn: Build
+
+  condition: >
+    and(
+      succeeded(),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      ne(variables['Build.Reason'], 'PullRequest')
+    )
+
+  lockBehavior: sequential
+
+  jobs:
+
+  - deployment: DeployAKS
+    displayName: Deploy Employee Application
+
+    environment: aks-employee-app
+
+    timeoutInMinutes: 25
+
+    strategy:
+
+      runOnce:
+
+        deploy:
+
+          steps:
+
+          # ------------------------------------------------
+          # Checkout repository
+          # ------------------------------------------------
+
           - checkout: self
-          - task: UsePythonVersion@0
-            inputs:
-              versionSpec: '$(pythonVersion)'
+
+
+          # ------------------------------------------------
+          # Download rendered Kubernetes manifests
+          # ------------------------------------------------
+
+          - download: current
+            artifact: aks-manifests
+
+
+          # ------------------------------------------------
+          # Install kubectl
+          # ------------------------------------------------
+
           - task: KubectlInstaller@0
+            displayName: Install kubectl
+
             inputs:
               kubectlVersion: '$(kubectlVersion)'
-          - bash: |
-              set -euo pipefail
-              docker build --pull -f backend/Dockerfile -t "$BACKEND_REF" backend
-              docker build --pull -f frontend/Dockerfile -t "$FRONTEND_REF" frontend
-              python -m pip install PyYAML==6.0.3
-              python scripts/ci/render-aks.py aks "$OUTPUT_DIR" "$BACKEND_REF" "$FRONTEND_REF"
-              kubectl kustomize "$OUTPUT_DIR" > "$OUTPUT_DIR/rendered.yaml"
-            displayName: Build both images and render deployment artifact
-            env:
-              BACKEND_REF: '$(acrLoginServer)/$(backendImage):$(imageTag)'
-              FRONTEND_REF: '$(acrLoginServer)/$(frontendImage):$(imageTag)'
-              OUTPUT_DIR: '$(Build.ArtifactStagingDirectory)/aks'
-          # Build and push run on the same agent: no lost Docker images between jobs.
+
+
+          # ------------------------------------------------
+          # Deploy application to AKS
+          # ------------------------------------------------
+
           - task: AzureCLI@2
-            displayName: Push release images to ACR
-            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
+            displayName: Deploy, wait for rollout and test public endpoint
+
             inputs:
               azureSubscription: '$(azureServiceConnection)'
               scriptType: bash
-              scriptLocation: inlineScript
-              inlineScript: |
-                set -euo pipefail
-                az acr login --name "$ACR_NAME"
-                docker push "$BACKEND_REF"
-                docker push "$FRONTEND_REF"
+              scriptLocation: scriptPath
+              scriptPath: scripts/ci/deploy-aks.sh
+
             env:
-              ACR_NAME: '$(acrName)'
+              AKS_RESOURCE_GROUP: '$(aksResourceGroup)'
+              AKS_CLUSTER_NAME: '$(aksClusterName)'
+
+              MANIFEST_DIR: '$(Pipeline.Workspace)/aks-manifests'
+
               BACKEND_REF: '$(acrLoginServer)/$(backendImage):$(imageTag)'
               FRONTEND_REF: '$(acrLoginServer)/$(frontendImage):$(imageTag)'
-          - task: PublishPipelineArtifact@1
-            inputs:
-              targetPath: '$(Build.ArtifactStagingDirectory)/aks'
-              artifact: aks-manifests
 
-  - stage: Deploy
-    dependsOn: Build
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
-    lockBehavior: sequential
-    jobs:
-      - deployment: DeployAKS
-        environment: aks-employee-app
-        timeoutInMinutes: 25
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - checkout: self
-                - download: current
-                  artifact: aks-manifests
-                - task: KubectlInstaller@0
-                  inputs:
-                    kubectlVersion: '$(kubectlVersion)'
-                - task: AzureCLI@2
-                  displayName: Deploy, wait for rollout and test public endpoint
-                  inputs:
-                    azureSubscription: '$(azureServiceConnection)'
-                    scriptType: bash
-                    scriptLocation: scriptPath
-                    scriptPath: scripts/ci/deploy-aks.sh
-                  env:
-                    AKS_RESOURCE_GROUP: '$(aksResourceGroup)'
-                    AKS_CLUSTER_NAME: '$(aksClusterName)'
-                    MANIFEST_DIR: '$(Pipeline.Workspace)/aks-manifests'
-                    BACKEND_REF: '$(acrLoginServer)/$(backendImage):$(imageTag)'
-                    FRONTEND_REF: '$(acrLoginServer)/$(frontendImage):$(imageTag)'
-                    KUBECONFIG: '$(Agent.TempDirectory)/employee-kubeconfig'
+              KUBECONFIG: '$(Agent.TempDirectory)/employee-kubeconfig'
