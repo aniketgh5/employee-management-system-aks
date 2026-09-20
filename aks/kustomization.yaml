@@ -41,7 +41,7 @@ commonLabels:
 images:
 - name: employee-backend-image
   newName: aniketghoshacr.azurecr.io/employee-api
-  newTag: 642-ae53fe241e736bf8e5010e103b3413d2aeeb535a
+  newTag: 643-d79b442b8464967389426e12399a9c922667ae20
 - name: employee-frontend-image
   newName: aniketghoshacr.azurecr.io/employee-frontend
-  newTag: 642-ae53fe241e736bf8e5010e103b3413d2aeeb535a
+  newTag: 643-d79b442b8464967389426e12399a9c922667ae20
