@@ -9,7 +9,7 @@ metadata:
     app: backend
     app.kubernetes.io/part-of: employee-management-system
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     # RollingUpdate: replace old Pods with new ones gradually instead of
     # all at once. With replicas=2, maxUnavailable=1/maxSurge=1 means at
