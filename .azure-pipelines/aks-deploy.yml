@@ -56,33 +56,53 @@ stages:
         echo "Checking Build Environment"
         echo "========================================"
 
+        echo ""
         echo "Python:"
+        command -v python3
         python3 --version
 
+        echo ""
         echo "PostgreSQL:"
+        command -v pg_config
         pg_config --version
 
+        echo ""
         echo "Docker:"
         docker --version
+
+        echo ""
+        echo "Build environment verification completed."
 
       displayName: Verify build dependencies
 
 
     # -----------------------------------------------------
-    # Backend tests
+    # Backend Tests
     #
-    # Keep this disabled until the Python 3.14 dependency
-    # versions in backend/requirements.txt are fixed.
+    # Temporarily disabled until Python 3.14 dependencies
+    # in backend/requirements.txt are updated.
     # -----------------------------------------------------
 
     # - bash: |
     #     set -euo pipefail
     #
+    #     echo "========================================"
+    #     echo "Creating Python Virtual Environment"
+    #     echo "========================================"
+    #
     #     python3 -m venv .venv
     #     source .venv/bin/activate
     #
-    #     python -m pip install --upgrade pip setuptools wheel
-    #     python -m pip install -r backend/requirements.txt
+    #     python --version
+    #
+    #     python -m pip install \
+    #       --upgrade \
+    #       pip \
+    #       setuptools \
+    #       wheel
+    #
+    #     python -m pip install \
+    #       -r backend/requirements.txt
     #
     #     cd backend
     #
@@ -125,13 +145,14 @@ stages:
         echo "Backend:"
         echo "$BACKEND_REF"
 
+        echo ""
         echo "Frontend:"
         echo "$FRONTEND_REF"
 
 
         echo ""
         echo "========================================"
-        echo "Building Backend"
+        echo "Building Backend Docker Image"
         echo "========================================"
 
         docker build \
@@ -143,7 +164,7 @@ stages:
 
         echo ""
         echo "========================================"
-        echo "Building Frontend"
+        echo "Building Frontend Docker Image"
         echo "========================================"
 
         docker build \
@@ -151,6 +172,10 @@ stages:
           -f frontend/Dockerfile \
           -t "$FRONTEND_REF" \
           frontend
+
+
+        echo ""
+        echo "Docker images built successfully."
 
       displayName: Build Docker images
 
@@ -160,7 +185,7 @@ stages:
 
 
     # -----------------------------------------------------
-    # Push Images to ACR
+    # Push Docker Images to ACR
     # -----------------------------------------------------
 
     - task: AzureCLI@2
@@ -181,17 +206,31 @@ stages:
         inlineScript: |
           set -euo pipefail
 
-          echo "Logging into ACR..."
+          echo "========================================"
+          echo "Login to Azure Container Registry"
+          echo "========================================"
 
           az acr login \
             --name "$ACR_NAME"
 
-          echo "Pushing backend..."
+
+          echo ""
+          echo "========================================"
+          echo "Push Backend Image"
+          echo "========================================"
+
           docker push "$BACKEND_REF"
 
-          echo "Pushing frontend..."
+
+          echo ""
+          echo "========================================"
+          echo "Push Frontend Image"
+          echo "========================================"
+
           docker push "$FRONTEND_REF"
 
+
+          echo ""
           echo "Images pushed successfully."
 
       env:
@@ -223,12 +262,59 @@ stages:
 
     steps:
 
+    # -----------------------------------------------------
+    # Checkout repository
+    # Keep credentials for git push
+    # -----------------------------------------------------
+
     - checkout: self
       persistCredentials: true
+      fetchDepth: 0
 
 
     # -----------------------------------------------------
-    # Update Kustomize image tags
+    # Install / Verify Kustomize
+    # -----------------------------------------------------
+
+    - bash: |
+        set -euo pipefail
+
+        echo "========================================"
+        echo "Checking Kustomize"
+        echo "========================================"
+
+        if command -v kustomize >/dev/null 2>&1; then
+
+          echo "Kustomize already installed."
+
+        else
+
+          echo "Kustomize not found."
+          echo "Installing Kustomize..."
+
+          INSTALL_DIR="$(Agent.TempDirectory)/bin"
+
+          mkdir -p "$INSTALL_DIR"
+
+          curl -s \
+            "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
+            | bash -s -- "$INSTALL_DIR"
+
+          echo "##vso[task.prependpath]$INSTALL_DIR"
+
+          export PATH="$INSTALL_DIR:$PATH"
+
+        fi
+
+        echo ""
+        echo "Kustomize version:"
+        kustomize version
+
+      displayName: Install and verify Kustomize
+
+
+    # -----------------------------------------------------
+    # Update image tags in kustomization.yaml
     # -----------------------------------------------------
 
     - bash: |
@@ -238,30 +324,51 @@ stages:
         echo "Updating GitOps Image Tags"
         echo "========================================"
 
-        cd aks
-
+        echo ""
         echo "Backend image:"
         echo "$BACKEND_REF"
 
+        echo ""
         echo "Frontend image:"
         echo "$FRONTEND_REF"
 
 
+        cd aks
+
+
+        echo ""
+        echo "Updating backend image..."
+
         kustomize edit set image \
           employee-backend-image="$BACKEND_REF"
+
+
+        echo ""
+        echo "Updating frontend image..."
 
         kustomize edit set image \
           employee-frontend-image="$FRONTEND_REF"
 
 
         echo ""
-        echo "Updated kustomization.yaml:"
+        echo "========================================"
+        echo "Updated kustomization.yaml"
+        echo "========================================"
+
         cat kustomization.yaml
 
 
         echo ""
         echo "========================================"
-        echo "Committing GitOps Change"
+        echo "Git Status"
+        echo "========================================"
+
+        git status --short
+
+
+        echo ""
+        echo "========================================"
+        echo "Commit GitOps Change"
         echo "========================================"
 
         git config user.name "Azure DevOps Pipeline"
@@ -269,14 +376,22 @@ stages:
 
         git add kustomization.yaml
 
+
         if git diff --cached --quiet; then
 
-          echo "No manifest changes detected."
+          echo "No image tag changes detected."
+          echo "Nothing to commit."
 
         else
 
           git commit \
             -m "chore(gitops): deploy build $(Build.BuildId) [skip ci]"
+
+
+          echo ""
+          echo "========================================"
+          echo "Push GitOps Change"
+          echo "========================================"
 
           git push origin HEAD:main
 
@@ -287,9 +402,6 @@ stages:
       env:
         BACKEND_REF: '$(acrLoginServer)/$(backendImage):$(imageTag)'
         FRONTEND_REF: '$(acrLoginServer)/$(frontendImage):$(imageTag)'
-
-
-
 
 
 # trigger:
